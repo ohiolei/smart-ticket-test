@@ -3,6 +3,7 @@
 A **Laravel 11 + Vue 3 SPA** for managing support tickets with **AI classification**.  
 Users can submit, classify, filter, and analyze tickets with a clean dashboard interface.
 
+
 ---
 
 ## ⚡ Setup (≤ 10 Steps)
@@ -35,5 +36,28 @@ Users can submit, classify, filter, and analyze tickets with a clean dashboard i
    ```bash
    php artisan serve
    npm run dev
+
+---
+
+Assumptions & Trade-offs
+
+No CSS frameworks → BEM naming conventions for maintainability.
+
+Options API only (no Composition API, no TypeScript) for simplicity.
+
+Minimal dependencies: only openai-php/laravel, chart.js.
+
+AI classification runs asynchronously in a queued job.
+
+
+What I’d Do With More Time
+
+Role-based auth (admin vs agent vs user)
+
+Email / Slack notifications when tickets classified
+
+Bulk ticket CSV import/export
+
+Better confidence calibration & AI retraining feedback
 
 
