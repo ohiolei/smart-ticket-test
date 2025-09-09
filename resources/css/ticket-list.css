@@ -1,0 +1,22 @@
+.ticket-list {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ticket-list__item {
+  border-bottom: 1px solid #ccc;
+}
+
+.ticket-list__status {
+  font-weight: bold;
+}
+
+.ticket-list__note-badge {
+  background: yellow;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.ticket-list__confidence {
+  color: gray;
+}
