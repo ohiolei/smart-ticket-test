@@ -1,9 +1,15 @@
+/* ===================== */
+/* Base Light Theme (Default) */
+/* ===================== */
+
 /* Container */
 .dashboard {
   display: flex;
   flex-direction: column;
   height: 100vh;
   font-family: Arial, sans-serif;
+  background: #f9fafb;
+  color: #111827;
 }
 
 /* Topbar */
@@ -43,7 +49,7 @@
 
 /* Sidebar */
 .dashboard__sidebar {
-  background: #334155;
+  background: #8f98a5;
   color: white;
   width: 220px;
   transition: width 0.3s ease;
@@ -90,4 +96,65 @@
   flex: 1;
   padding: 2rem;
   background: #f9fafb;
+  color: #111827;
 }
+
+/* ===================== */
+/* Dark Mode Overrides */
+/* ===================== */
+
+.dashboard.dark-mode {
+  background: #0f172a;
+  color: #f1f5f9;
+}
+
+/* Topbar */
+.dashboard.dark-mode .dashboard__topbar {
+  background: #0f172a;
+  color: #f1f5f9;
+}
+
+.dashboard.dark-mode .dashboard__nav-item {
+  color: #f1f5f9;
+}
+.dashboard.dark-mode .dashboard__nav-item:hover {
+  text-decoration: underline;
+  color: #38bdf8; /* Light cyan highlight */
+}
+
+/* Sidebar */
+.dashboard.dark-mode .dashboard__sidebar {
+  background: #0f141c;
+  color: #f1f5f9;
+}
+
+.dashboard.dark-mode .dashboard__menu-item a {
+  color: #f1f5f9;
+}
+.dashboard.dark-mode .dashboard__menu-item a:hover {
+  background: #334155;
+}
+
+/* Content */
+.dashboard.dark-mode .dashboard__content {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+/* Toggle button */
+.dashboard__theme-toggle {
+  background: transparent;
+  border: 1px solid #64748b;
+  color: inherit;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.dashboard__theme-toggle:hover {
+  background: #475569;
+  color: white;
+}
+.dashboard.dark-mode .dashboard__theme-toggle:hover {
+  background: #334155;
+}
+

@@ -1,13 +1,17 @@
 <template>
-  <div class="dashboard">
+  <div class="dashboard" :class="{ 'dark-mode': darkMode }">
     <!-- Top Navbar -->
     <header class="dashboard__topbar">
       <div class="dashboard__logo">smart ticket</div>
       <nav class="dashboard__nav">
         <router-link to="/profile" class="dashboard__nav-item">Profile</router-link>
         <router-link to="/settings" class="dashboard__nav-item">Settings</router-link>
-        <router-link to="/logout" class="dashboard__nav-item">Logout</router-link>
       </nav>
+
+      <!-- Dark/Light Toggle Button -->
+      <button class="dashboard__theme-toggle" @click="toggleTheme">
+        {{ darkMode ? "🌙 Dark" : "☀️ Light" }}
+      </button>
     </header>
 
     <div class="dashboard__body">
@@ -21,13 +25,10 @@
         </button>
         <ul class="dashboard__menu">
           <li class="dashboard__menu-item">
-            <router-link to="/">🏠 Home</router-link>
+            <router-link to="/home">🏠 Home</router-link>
           </li>
           <li class="dashboard__menu-item">
             <router-link to="/tickets">🎫 Tickets</router-link>
-          </li>
-          <li class="dashboard__menu-item">
-            <router-link to="/stats">📊 Dashboard</router-link>
           </li>
           <li class="dashboard__menu-item">
             <router-link to="/settings">⚙ Settings</router-link>
@@ -37,7 +38,6 @@
 
       <!-- Main Content -->
       <main class="dashboard__content">
-        
         <router-view></router-view>
       </main>
     </div>
@@ -50,11 +50,15 @@ export default {
   data() {
     return {
       collapsed: false,
+      darkMode: false, // Theme state
     };
   },
   methods: {
     toggleSidebar() {
       this.collapsed = !this.collapsed;
+    },
+    toggleTheme() {
+      this.darkMode = !this.darkMode;
     },
   },
 };
