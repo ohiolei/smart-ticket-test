@@ -22,8 +22,6 @@ Users can submit, classify, filter, and analyze tickets with a clean dashboard i
    ```bash
    npm install
 
-
-
 4. **create enviromental varriables and generate app key**
    ```bash
    cp .env.example .env
@@ -31,11 +29,11 @@ Users can submit, classify, filter, and analyze tickets with a clean dashboard i
 
 5. **migrate and seed the database**
    ```bash
-  php artisan migrate --seed
+   php artisan migrate --seed
 
 6. **serve php and javascript**
    ```bash
-  php artisan serve
-  npm run dev
+   php artisan serve
+   npm run dev
 
 
