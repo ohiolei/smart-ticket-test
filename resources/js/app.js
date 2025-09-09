@@ -1,9 +1,8 @@
-import { createApp } from 'vue'
-import router from './router'
-import App from './App.vue'
+import { createApp } from "vue";
+import DashboardLayout from "./Dashboard/Layout.vue";
+import router from "./router/index.js"; 
+import "../css/dashboard.css";
 
-import '../css/main.css' // global styles
-
-const app = createApp(App)
-app.use(router)
-app.mount('#app')
+const app = createApp(DashboardLayout);
+app.use(router);
+app.mount("#app");

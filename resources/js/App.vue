@@ -2,8 +2,7 @@
   <div id="app">
     <header class="app__header">
       <nav>
-        <router-link to="/tickets">Tickets</router-link> |
-        <router-link to="/dashboard">Dashboard</router-link>
+        <router-link to="/tickets">Tickets</router-link>
       </nav>
     </header>
 
