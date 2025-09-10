@@ -16,7 +16,7 @@ return [
 
      'classifier' => [
         'enabled' => env('OPENAI_CLASSIFY_ENABLED', false),
-        'model'   => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'model'   => env('OPENAI_MODEL', 'gpt-3.5-turbo'),
     ],
     
     'postmark' => [

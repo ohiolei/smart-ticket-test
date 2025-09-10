@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Jobs;
 
 use App\Models\Ticket;
@@ -8,10 +9,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class ClassifyTicket implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public $tries = 3;
+    public $backoff = [60, 300, 600]; // 1 min, 5 min, 10 min
 
     public function __construct(public string $ticketId) {}
 
@@ -19,15 +24,30 @@ class ClassifyTicket implements ShouldQueue
     {
         $ticket = Ticket::findOrFail($this->ticketId);
 
-        $result = $classifier->classify($ticket);
+        try {
+            $classification = $classifier->classify(
+                $ticket->subject,
+                $ticket->body ?? ''
+            );
 
-        // Keep manual category if user already changed it
-        $newCategory = $ticket->category ?: $result['category'];
+            $ticket->update([
+                'category' => $classification['category'],
+                'explanation' => $classification['explanation'],
+                'confidence' => $classification['confidence']
+            ]);
 
-        $ticket->update([
-            'category'    => $newCategory,
-            'explanation' => $result['explanation'],
-            'confidence'  => $result['confidence'],
-        ]);
+        } catch (\Exception $e) {
+            Log::error("Ticket classification failed: " . $e->getMessage());
+            
+            if ($this->attempts() < $this->tries) {
+                $this->release($this->backoff[$this->attempts() - 1]);
+                return;
+            }
+            
+            $ticket->update([
+                'explanation' => 'Classification failed after multiple attempts',
+                'confidence' => 0
+            ]);
+        }
     }
 }

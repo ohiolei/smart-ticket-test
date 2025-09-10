@@ -5,31 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use App\Jobs\ClassifyTicket;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class TicketController extends Controller
 {
     public function index(Request $request)
     {
 
-        // if ($search = $request->string('query')->toString()) {
-        //    Ticket::where(function($query_con) use ($search) {
-        //         $query_con->where('subject','like',"%$search%")
-        //           ->orWhere('body','like',"%$search%");
-        //     });
-        // }
-
-        // if ($status = $request->string('status')->toString()) {
-        //    Ticket::where('status', $status);
-        // }
-
-        // if ($category = $request->string('category')->toString()) {
-        //    Ticket::where('category', $category);
-        // }
-
-        // $perPage = (int) $request->get('per_page', 10);
-        // $tickets = Ticket::latest()->paginate($perPage);
-
-        // return response()->json($tickets);
+        // sever side filtering
         $tickets = Ticket::when(
             $request->filled('subject') || $request->filled('status') || $request->filled('category'),
             function ($query) use ($request) {
@@ -51,6 +34,11 @@ class TicketController extends Controller
         )
             ->paginate(10); // ✅ use pagination if you want
         // ->get(); // if you don't need pagination
+
+
+        //will be filtered on client side
+        //$tickets = Ticket::all();
+
 
         return response()->json($tickets, 200);
     }
@@ -102,15 +90,69 @@ class TicketController extends Controller
         ]);
     }
 
+    public function categorySummary()
+    {
+        $summary = Ticket::select('category', \DB::raw('COUNT(*) as count'))
+            ->groupBy('category')
+            ->pluck('count', 'category');
+
+        return response()->json($summary);
+    }
+
+    public function statusSummary()
+    {
+        $summary = Ticket::select('status', \DB::raw('COUNT(*) as count'))
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        return response()->json($summary);
+    }
+
+    public function stats()
+    {
+        return response()->json([
+            'total_tickets' => Ticket::count(),
+            'open_tickets' => Ticket::where('status', 'open')->count(),
+            'pending_tickets' => Ticket::where('status', 'in_progress')->count(),
+            'resolved_tickets' => Ticket::where('status', 'closed')->count(),
+        ]);
+    }
+
+
     public function classify(string $id)
     {
         $ticket = Ticket::findOrFail($id);
+
+        // Check if already classified
+        if ($ticket->confidence !== null) {
+            return response()->json([
+                'message' => 'This ticket has already been classified',
+                'ticket' => $ticket,
+            ], 409);
+        }
+
+        // Check global rate limit
+        $globalRateLimitKey = 'openai_global_rate_limit';
+        $requestsToday = Cache::get($globalRateLimitKey, 0);
+
+        if ($requestsToday >= 50) { // Limit to 50 requests per day
+            return response()->json([
+                'message' => 'Daily classification limit reached. Please try again tomorrow.',
+                'ticket' => $ticket,
+            ], 429);
+        }
+
+        Cache::put($globalRateLimitKey, $requestsToday + 1, 86400); // 24 hours
+
+        // Dispatch the job
         ClassifyTicket::dispatch($ticket->id);
 
         return response()->json([
             'queued' => true,
+            'message' => 'Classification job queued successfully',
             'ticket' => $ticket,
         ], 202);
     }
+
 }
 

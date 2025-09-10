@@ -73,7 +73,128 @@ function updateTicket() {
         });
 }
 
-function classifyTicket() {}
+function classifyTicket() {
+    if (!selectedTicket.value.id) return;
+
+    axios
+        .post(`/api/tickets/${selectedTicket.value.id}/classify`)
+        .then((response) => {
+            if (response.status === 409) {
+                alert(response.data.message);
+            } else {
+                alert('Classification started! It may take a few moments.');
+                // Refresh after a delay to see the results
+                setTimeout(() => {
+                    getTickets(pagination.value.current_page);
+                }, 3000);
+            }
+        })
+        .catch((error) => {
+            console.error(error);
+            if (error.response?.status === 409) {
+                alert(error.response.data.message);
+            } else {
+                alert('Failed to queue classification.');
+            }
+        });
+}
+// Poll for classification completion
+function pollClassificationStatus(ticketId, attempt = 1, maxAttempts = 30) {
+    if (attempt > maxAttempts) {
+        showNotification('Classification timed out. Please refresh to see results.', 'warning');
+        return;
+    }
+
+    axios.get(`/api/tickets/${ticketId}`)
+        .then(response => {
+            const ticket = response.data;
+            
+            if (ticket.classification_status === 'completed') {
+                showNotification('Classification completed successfully!', 'success');
+                // Refresh the tickets list
+                getTickets(pagination.value.current_page);
+            } 
+            else if (ticket.classification_status === 'failed') {
+                showNotification('Classification failed. Please try again.', 'error');
+                getTickets(pagination.value.current_page);
+            }
+            else if (ticket.classification_status === 'processing') {
+                // Still processing, check again after delay
+                setTimeout(() => {
+                    pollClassificationStatus(ticketId, attempt + 1, maxAttempts);
+                }, 1000);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking classification status:', error);
+            if (attempt < maxAttempts) {
+                setTimeout(() => {
+                    pollClassificationStatus(ticketId, attempt + 1, maxAttempts);
+                }, 1000);
+            }
+        });
+}
+
+// Notification system
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()">×</button>
+    `;
+    
+    // Add styles if not already present
+    if (!document.querySelector('#notification-styles')) {
+        const styles = document.createElement('style');
+        styles.id = 'notification-styles';
+        styles.textContent = `
+            .notification {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 16px;
+                border-radius: 4px;
+                color: white;
+                z-index: 1000;
+                max-width: 300px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideIn 0.3s ease;
+            }
+            .notification-success { background-color: #27ae60; }
+            .notification-error { background-color: #e74c3c; }
+            .notification-warning { background-color: #f39c12; }
+            .notification-info { background-color: #3498db; }
+            .notification button {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 18px;
+                cursor: pointer;
+                margin-left: 10px;
+            }
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(styles);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
 function searchTickets() {
     getTickets(1); // ✅ reset to page 1
 }
@@ -89,6 +210,7 @@ const newTicket = ref({
 
 const DetailsModal = ref(false);
 const selectedTicket = ref({});
+const classifyButton = ref(null);
 
 function openDetailsModal(ticket) {
     selectedTicket.value = { ...ticket };
@@ -352,9 +474,10 @@ onMounted(() => {
                         </button>
 
                         <button
+                            ref="classifyButton"
                             type="button"
                             class="btn btn--primary"
-                            @click="classifyTicket"
+                            @click.prevent="classifyTicket"
                         >
                             Classify
                         </button>
@@ -657,5 +780,35 @@ onMounted(() => {
     background: #273449;
     border: 1px solid #475569;
     color: #e2e8f0;
+}
+
+/* ================== */
+/* SPINNER STYLES (NEW) */
+/* ================== */
+.spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Loading state for classification */
+.classifying {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.classifying .spinner {
+    display: inline-block;
 }
 </style>
