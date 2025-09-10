@@ -1,26 +1,117 @@
+<script setup>
+import { ref, onMounted } from "vue";
+import Layout from "../Layout/Layout.vue";
+import axios from "axios";
+
+defineOptions({ layout: Layout });
+
+/* ✅ Tickets */
+const tickets = ref([]);
+
+const pagination = ref({
+    current_page: 1,
+    last_page: 1,
+    per_page: 5,
+    total: 0,
+});
+
+const filters = ref({
+    subject: "",
+    status: "",
+    category: "",
+});
+
+function getTickets(page = 1) {
+    axios
+        .get("/api/tickets", {
+            params: {
+                subject: filters.value.subject,
+                status: filters.value.status,
+                category: filters.value.category,
+                page: page,
+            },
+        })
+        .then((response) => {
+            tickets.value = response.data.data; // ✅ "data" from Laravel paginate
+            pagination.value = {
+                current_page: response.data.current_page,
+                last_page: response.data.last_page,
+                per_page: response.data.per_page,
+                total: response.data.total,
+            };
+        });
+}
+
+function changePage(page) {
+    if (page > 0 && page <= pagination.value.last_page) {
+        getTickets(page);
+    }
+}
+
+function searchTickets() {
+    getTickets(1); // ✅ reset to page 1
+}
+
+/* ✅ Modals */
+const showModal = ref(false);
+const newTicket = ref({
+    subject: "",
+    status: "open",
+    category: "other",
+    confidence: "",
+    note: "",
+});
+
+const DetailsModal = ref(false);
+const selectedTicket = ref({});
+
+function openDetailsModal(ticket) {
+    selectedTicket.value = { ...ticket };
+    DetailsModal.value = true;
+}
+
+function closeDetailsModal() {
+    DetailsModal.value = false;
+}
+
+onMounted(() => {
+    getTickets();
+});
+</script>
+
 <template>
     <div class="ticket-container">
         <!-- Toolbar with filters and new ticket -->
         <div class="ticket-toolbar">
             <div class="filters">
                 <input
-                    v-model="search"
+                    v-model="filters.subject"
                     type="text"
-                    placeholder="🔍 Search tickets..."
+                    placeholder="🔍 tickets subject..."
                     class="filter-input"
                 />
 
-                <select v-model="statusFilter" class="filter-select">
+                <!-- Status filter -->
+                <select v-model="filters.status" class="filter-select">
                     <option value="">All Status</option>
                     <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
                     <option value="closed">Closed</option>
                 </select>
 
-                <select v-model="categoryFilter" class="filter-select">
+                <!-- Category filter -->
+                <select v-model="filters.category" class="filter-select">
                     <option value="">All Categories</option>
-                    <option value="Authentication">Authentication</option>
-                    <option value="Email">Email</option>
+                    <option value="account">Account</option>
+                    <option value="bug">Bug</option>
+                    <option value="feature">Feature</option>
+                    <option value="billing">Billing</option>
+                    <option value="other">Others</option>
                 </select>
+
+                <button class="btn btn--primary" @click="searchTickets">
+                    Search
+                </button>
             </div>
 
             <button class="btn btn--primary" @click="showModal = true">
@@ -42,7 +133,7 @@
             </thead>
             <tbody class="ticket-list__body">
                 <tr
-                    v-for="(ticket, index) in filteredTickets"
+                    v-for="(ticket, index) in tickets"
                     :key="index"
                     class="ticket-list__row"
                 >
@@ -51,8 +142,10 @@
                         <span
                             :class="[
                                 'badge',
-                                ticket.status === 'Open'
+                                ticket.status === 'open'
                                     ? 'badge--open'
+                                    : ticket.status === 'in_progress'
+                                    ? 'badge--in_progress'
                                     : 'badge--closed',
                             ]"
                         >
@@ -63,11 +156,37 @@
                     <td class="ticket-list__cell">{{ ticket.confidence }}</td>
                     <td class="ticket-list__cell">{{ ticket.note }}</td>
                     <td class="ticket-list__cell">
-                        <button class="btn btn--small" @click="openDetailsModal(ticket)">View</button>
+                        <button
+                            class="btn btn--small"
+                            @click="openDetailsModal(ticket)"
+                        >
+                            View
+                        </button>
                     </td>
                 </tr>
             </tbody>
         </table>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <button
+                :disabled="pagination.current_page === 1"
+                @click="changePage(pagination.current_page - 1)"
+            >
+                Prev
+            </button>
+
+            <span>
+                Page {{ pagination.current_page }} of {{ pagination.last_page }}
+            </span>
+
+            <button
+                :disabled="pagination.current_page === pagination.last_page"
+                @click="changePage(pagination.current_page + 1)"
+            >
+                Next
+            </button>
+        </div>
 
         <!-- New Ticket Modal -->
         <div
@@ -85,21 +204,18 @@
                         class="modal-input"
                         required
                     />
-                    <select
-                        v-model="newTicket.status"
-                        class="modal-input"
-                        required
-                    >
-                        <option>Open</option>
-                        <option>Closed</option>
+                    <select v-model="newTicket.status" class="modal-input" required>
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="closed">Closed</option>
                     </select>
-                    <input
-                        v-model="newTicket.category"
-                        type="text"
-                        placeholder="Category"
-                        class="modal-input"
-                        required
-                    />
+                    <select v-model="newTicket.category" class="modal-input" required>
+                        <option value="account">Account</option>
+                        <option value="bug">Bug</option>
+                        <option value="feature">Feature</option>
+                        <option value="billing">Billing</option>
+                        <option value="other">Others</option>
+                    </select>
                     <input
                         v-model="newTicket.confidence"
                         type="number"
@@ -129,16 +245,15 @@
             </div>
         </div>
 
-
-         <!-- Details Modal -->
+        <!-- Details Modal -->
         <div
             v-if="DetailsModal"
             class="modal-overlay"
             @click.self="DetailsModal = false"
         >
             <div class="modal">
-                <h2 class="modal-title">Ticket</h2>
-                <form @submit.prevent="addTicket">
+                <h2 class="modal-title">Ticket Details</h2>
+                <form @submit.prevent="updateTicket">
                     <input
                         v-model="selectedTicket.subject"
                         type="text"
@@ -151,16 +266,21 @@
                         class="modal-input"
                         required
                     >
-                        <option>Open</option>
-                        <option>Closed</option>
+                        <option value="open">Open</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="closed">Closed</option>
                     </select>
-                    <input
+                    <select
                         v-model="selectedTicket.category"
-                        type="text"
-                        placeholder="Category"
                         class="modal-input"
                         required
-                    />
+                    >
+                        <option value="account">Account</option>
+                        <option value="bug">Bug</option>
+                        <option value="feature">Feature</option>
+                        <option value="billing">Billing</option>
+                        <option value="other">Others</option>
+                    </select>
                     <input
                         v-model="selectedTicket.confidence"
                         type="number"
@@ -183,7 +303,10 @@
                             Cancel
                         </button>
                         <button type="submit" class="btn btn--primary">
-                            Save
+                            Update
+                        </button>
+                        <button type="button" class="btn btn--primary">
+                            Classify
                         </button>
                     </div>
                 </form>
@@ -191,85 +314,6 @@
         </div>
     </div>
 </template>
-
-
-<script setup>
-import { ref, computed } from "vue";
-import Layout from "../Dashboard/Layout.vue";
-
-defineOptions({ layout: Layout });
-
-/* ✅ Dummy Tickets */
-const tickets = ref([
-    {
-        subject: "Password reset issue",
-        status: "Open",
-        category: "Authentication",
-        confidence: 0.87,
-        note: "User forgot credentials",
-    },
-    {
-        subject: "Email not delivered",
-        status: "Closed",
-        category: "Email",
-        confidence: 0.92,
-        note: "SMTP issue confirmed",
-    },
-    {
-        subject: "Two-factor code expired",
-        status: "Open",
-        category: "Authentication",
-        confidence: 0.76,
-        note: "User unable to log in",
-    },
-]);
-
-/* ✅ Filters */
-const searchQuery = ref("");
-const statusFilter = ref("");
-const categoryFilter = ref("");
-
-/* ✅ Computed Filtered Tickets */
-const filteredTickets = computed(() => {
-    return tickets.value.filter((t) => {
-        const matchesSearch =
-            t.subject.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-            t.note.toLowerCase().includes(searchQuery.value.toLowerCase());
-
-        const matchesStatus = statusFilter.value
-            ? t.status === statusFilter.value
-            : true;
-
-        const matchesCategory = categoryFilter.value
-            ? t.category === categoryFilter.value
-            : true;
-
-        return matchesSearch && matchesStatus && matchesCategory;
-    });
-});
-
-const showModal = ref(false);
-const newTicket = ref({
-    subject: "",
-    status: "Open",
-    category: "",
-    confidence: "",
-    note: "",
-});
-
-
-const DetailsModal = ref(false);
-const selectedTicket = ref({});
-
-function openDetailsModal(ticket) {
-  selectedTicket.value = ticket;
-  DetailsModal.value = true;
-}
-
-function closeDetailsModal() {
-  DetailsModal.value = false;
-}
-</script>
 
 <style>
 .ticket-container {
@@ -371,6 +415,10 @@ function closeDetailsModal() {
 }
 .badge--closed {
     background: #ef4444;
+}
+
+.badge--in_progress {
+    background: #0b1b5b;
 }
 
 /* Buttons */

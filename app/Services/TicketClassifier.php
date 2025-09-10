@@ -11,12 +11,12 @@ class TicketClassifier
     {
         if (!filter_var(config('services.classifier.enabled', true), FILTER_VALIDATE_BOOLEAN)) {
             // fallback dummy
-            $cats = ['billing','bug','feature','account','other'];
+            $cats = ['billing', 'bug', 'feature', 'account', 'other'];
             $c = $cats[array_rand($cats)];
             return [
-                'category'     => $ticket->category ?? $c,
-                'explanation'  => "Dummy classification for testing: {$c}.",
-                'confidence'   => round(mt_rand(55, 95) / 100, 2),
+                'category' => $ticket->category ?? $c,
+                'explanation' => "Dummy classification for testing: {$c}.",
+                'confidence' => round(mt_rand(55, 95) / 100, 2),
             ];
         }
 
@@ -34,7 +34,7 @@ SYS;
             'model' => $model,
             'messages' => [
                 ['role' => 'system', 'content' => $system],
-                ['role' => 'user',   'content' => $user],
+                ['role' => 'user', 'content' => $user],
             ],
             'temperature' => 0.2,
         ]);
@@ -43,9 +43,9 @@ SYS;
         $json = json_decode($content, true);
         // basic guardrails
         $category = $json['category'] ?? 'other';
-        $confidence = isset($json['confidence']) ? (float)$json['confidence'] : 0.6;
+        $confidence = isset($json['confidence']) ? (float) $json['confidence'] : 0.6;
         $explanation = $json['explanation'] ?? 'Not provided';
 
-        return compact('category','explanation','confidence');
+        return compact('category', 'explanation', 'confidence');
     }
 }

@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import Tickets from "../pages/Tickets.vue";
-import DasboardHome from '../Dashboard/DashboardHome.vue'
+import DasboardHome from '../pages/DashboardHome.vue'
 
 
 const routes = [

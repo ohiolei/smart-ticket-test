@@ -13,11 +13,9 @@ Users can submit, classify, filter, and analyze tickets with a clean dashboard i
    git clone https://github.com/ohiolei/smart-ticket-test.git
    cd smart-ticket-triage
 
-
 2. **install all php dependencies**
    ```bash
    composer install
-
 
 3. **install all javacript dependencies**
    ```bash

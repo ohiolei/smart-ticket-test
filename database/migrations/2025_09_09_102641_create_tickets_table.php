@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('subject');
             $table->text('body');
             $table->enum('status', ['open','in_progress','closed'])->default('open');
-            $table->string('category')->nullable();         
+           $table->enum('category', ['billing','bug','feature', 'account', 'other'])->nullable();         
             $table->text('explanation')->nullable();         
             $table->float('confidence')->nullable();         
             $table->text('note')->nullable();                
