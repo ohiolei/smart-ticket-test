@@ -57,14 +57,23 @@ class TicketController extends Controller
 
     public function store(Request $request)
     {
+
         $data = $request->validate([
             'subject' => 'required|string|max:255',
-            'body' => 'required|string',
+            'category' => 'nullable|string|max:15',
+            'status' => 'required|string|max:255',
+            'confidence' => 'nullable|numeric|between:0,1',
+            'body' => 'nullable|string|max:500',
+            'note' => 'nullable|string|max:500',
         ]);
+
 
         $ticket = Ticket::create($data);
 
-        return response()->json($ticket, 201);
+        return response()->json([
+            'message' => 'Ticket created successfully',
+            'ticket' => $ticket
+        ]);
     }
 
     public function show(string $id)
@@ -77,14 +86,20 @@ class TicketController extends Controller
         $ticket = Ticket::findOrFail($id);
 
         $data = $request->validate([
-            'status' => 'nullable|in:open,in_progress,closed',
+            'subject' => 'required|string|max:255',
             'category' => 'nullable|string|max:50',
+            'status' => 'required|string|max:50',
+            'confidence' => 'nullable|numeric',
+            'body' => 'nullable|string',
             'note' => 'nullable|string',
         ]);
 
         $ticket->update($data);
 
-        return response()->json($ticket);
+        return response()->json([
+            'message' => 'Ticket updated successfully',
+            'ticket' => $ticket
+        ]);
     }
 
     public function classify(string $id)

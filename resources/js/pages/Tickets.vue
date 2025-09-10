@@ -47,12 +47,37 @@ function changePage(page) {
         getTickets(page);
     }
 }
+function addTicket() {
+    axios.post("/api/tickets", newTicket.value).then((response) => {
+        console.log(response.data);
+        showModal.value = false;
 
+        newTicket.value = {
+            subject: "",
+            status: "open",
+            category: "other",
+            confidence: "",
+            note: "",
+        };
+        getTickets(pagination.value.current_page);
+    });
+}
+
+function updateTicket() {
+    axios
+        .patch(`/api/tickets/${selectedTicket.value.id}`, selectedTicket.value)
+        .then((response) => {
+            console.log(response.data);
+            DetailsModal.value = false;
+            getTickets(pagination.value.current_page);
+        });
+}
+
+function classifyTicket() {}
 function searchTickets() {
     getTickets(1); // ✅ reset to page 1
 }
 
-/* ✅ Modals */
 const showModal = ref(false);
 const newTicket = ref({
     subject: "",
@@ -67,6 +92,7 @@ const selectedTicket = ref({});
 
 function openDetailsModal(ticket) {
     selectedTicket.value = { ...ticket };
+    console.log(selectedTicket.value);
     DetailsModal.value = true;
 }
 
@@ -196,7 +222,7 @@ onMounted(() => {
         >
             <div class="modal">
                 <h2 class="modal-title">New Ticket</h2>
-                <form @submit.prevent="addTicket">
+                <form>
                     <input
                         v-model="newTicket.subject"
                         type="text"
@@ -204,12 +230,20 @@ onMounted(() => {
                         class="modal-input"
                         required
                     />
-                    <select v-model="newTicket.status" class="modal-input" required>
+                    <select
+                        v-model="newTicket.status"
+                        class="modal-input"
+                        required
+                    >
                         <option value="open">Open</option>
                         <option value="in_progress">In Progress</option>
                         <option value="closed">Closed</option>
                     </select>
-                    <select v-model="newTicket.category" class="modal-input" required>
+                    <select
+                        v-model="newTicket.category"
+                        class="modal-input"
+                        required
+                    >
                         <option value="account">Account</option>
                         <option value="bug">Bug</option>
                         <option value="feature">Feature</option>
@@ -233,11 +267,15 @@ onMounted(() => {
                         <button
                             type="button"
                             class="btn btn--outline"
-                            @click="showModal = false"
+                            @click.prevent="showModal = false"
                         >
                             Cancel
                         </button>
-                        <button type="submit" class="btn btn--primary">
+                        <button
+                            type="submit"
+                            class="btn btn--primary"
+                            @click.prevent="addTicket"
+                        >
                             Save
                         </button>
                     </div>
@@ -261,6 +299,7 @@ onMounted(() => {
                         class="modal-input"
                         required
                     />
+
                     <select
                         v-model="selectedTicket.status"
                         class="modal-input"
@@ -270,6 +309,7 @@ onMounted(() => {
                         <option value="in_progress">In Progress</option>
                         <option value="closed">Closed</option>
                     </select>
+
                     <select
                         v-model="selectedTicket.category"
                         class="modal-input"
@@ -281,6 +321,7 @@ onMounted(() => {
                         <option value="billing">Billing</option>
                         <option value="other">Others</option>
                     </select>
+
                     <input
                         v-model="selectedTicket.confidence"
                         type="number"
@@ -289,23 +330,32 @@ onMounted(() => {
                         class="modal-input"
                         required
                     />
+
                     <textarea
                         v-model="selectedTicket.note"
                         placeholder="Note"
                         class="modal-input"
                     ></textarea>
+
                     <div class="modal-actions">
                         <button
                             type="button"
                             class="btn btn--outline"
-                            @click="DetailsModal = false"
+                            @click.prevent="DetailsModal = false"
                         >
                             Cancel
                         </button>
+
+                        <!-- ✅ FIX: Correct update button -->
                         <button type="submit" class="btn btn--primary">
                             Update
                         </button>
-                        <button type="button" class="btn btn--primary">
+
+                        <button
+                            type="button"
+                            class="btn btn--primary"
+                            @click="classifyTicket"
+                        >
                             Classify
                         </button>
                     </div>

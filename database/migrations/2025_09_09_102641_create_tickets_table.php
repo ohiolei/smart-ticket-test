@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('tickets', function (Blueprint $table) {
              $table->ulid('id')->primary();
             $table->string('subject');
-            $table->text('body');
+            $table->text('body')->nullable();
             $table->enum('status', ['open','in_progress','closed'])->default('open');
            $table->enum('category', ['billing','bug','feature', 'account', 'other'])->nullable();         
             $table->text('explanation')->nullable();         
