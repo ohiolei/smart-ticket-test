@@ -1,52 +1,85 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import Layout from "../Layout/Layout.vue";
 import axios from "axios";
 
 defineOptions({ layout: Layout });
 
 /* ✅ Tickets */
-const tickets = ref([]);
+const allTickets = ref([]); // Store all tickets
+const loading = ref(true);
 
-const pagination = ref({
-    current_page: 1,
-    last_page: 1,
-    per_page: 5,
-    total: 0,
-});
-
+// Filters
 const filters = ref({
     subject: "",
     status: "",
     category: "",
 });
 
-function getTickets(page = 1) {
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+
+// Computed property for filtered tickets
+const filteredTickets = computed(() => {
+    let result = [...allTickets.value];
+    
+    // Apply subject filter
+    if (filters.value.subject) {
+        const searchTerm = filters.value.subject.toLowerCase();
+        result = result.filter(ticket => 
+            ticket.subject.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Apply status filter
+    if (filters.value.status) {
+        result = result.filter(ticket => ticket.status === filters.value.status);
+    }
+    
+    // Apply category filter
+    if (filters.value.category) {
+        result = result.filter(ticket => ticket.category === filters.value.category);
+    }
+    
+    return result;
+});
+
+// Computed property for paginated tickets
+const paginatedTickets = computed(() => {
+    const start = (currentPage.value - 1) * itemsPerPage.value;
+    const end = start + itemsPerPage.value;
+    return filteredTickets.value.slice(start, end);
+});
+
+// Computed property for total pages
+const totalPages = computed(() => {
+    return Math.ceil(filteredTickets.value.length / itemsPerPage.value);
+});
+
+// Fetch all tickets
+function getTickets() {
+    loading.value = true;
     axios
-        .get("/api/tickets", {
-            params: {
-                subject: filters.value.subject,
-                status: filters.value.status,
-                category: filters.value.category,
-                page: page,
-            },
-        })
+        .get("/api/tickets?per_page=1000") // Get all tickets with high per_page
         .then((response) => {
-            tickets.value = response.data.data; // ✅ "data" from Laravel paginate
-            pagination.value = {
-                current_page: response.data.current_page,
-                last_page: response.data.last_page,
-                per_page: response.data.per_page,
-                total: response.data.total,
-            };
+            // Handle both paginated and non-paginated responses
+            allTickets.value = response.data.data || response.data;
+        })
+        .catch((error) => {
+            console.error("Error fetching tickets:", error);
+        })
+        .finally(() => {
+            loading.value = false;
         });
 }
 
 function changePage(page) {
-    if (page > 0 && page <= pagination.value.last_page) {
-        getTickets(page);
+    if (page > 0 && page <= totalPages.value) {
+        currentPage.value = page;
     }
 }
+
 function addTicket() {
     axios.post("/api/tickets", newTicket.value).then((response) => {
         console.log(response.data);
@@ -59,7 +92,9 @@ function addTicket() {
             confidence: "",
             note: "",
         };
-        getTickets(pagination.value.current_page);
+        
+        // Refresh the tickets list
+        getTickets();
     });
 }
 
@@ -69,7 +104,12 @@ function updateTicket() {
         .then((response) => {
             console.log(response.data);
             DetailsModal.value = false;
-            getTickets(pagination.value.current_page);
+            
+            // Update the local ticket data
+            const index = allTickets.value.findIndex(t => t.id === selectedTicket.value.id);
+            if (index !== -1) {
+                allTickets.value[index] = { ...allTickets.value[index], ...selectedTicket.value };
+            }
         });
 }
 
@@ -85,7 +125,7 @@ function classifyTicket() {
                 alert('Classification started! It may take a few moments.');
                 // Refresh after a delay to see the results
                 setTimeout(() => {
-                    getTickets(pagination.value.current_page);
+                    getTickets();
                 }, 3000);
             }
         })
@@ -98,105 +138,19 @@ function classifyTicket() {
             }
         });
 }
-// Poll for classification completion
-function pollClassificationStatus(ticketId, attempt = 1, maxAttempts = 30) {
-    if (attempt > maxAttempts) {
-        showNotification('Classification timed out. Please refresh to see results.', 'warning');
-        return;
-    }
-
-    axios.get(`/api/tickets/${ticketId}`)
-        .then(response => {
-            const ticket = response.data;
-            
-            if (ticket.classification_status === 'completed') {
-                showNotification('Classification completed successfully!', 'success');
-                // Refresh the tickets list
-                getTickets(pagination.value.current_page);
-            } 
-            else if (ticket.classification_status === 'failed') {
-                showNotification('Classification failed. Please try again.', 'error');
-                getTickets(pagination.value.current_page);
-            }
-            else if (ticket.classification_status === 'processing') {
-                // Still processing, check again after delay
-                setTimeout(() => {
-                    pollClassificationStatus(ticketId, attempt + 1, maxAttempts);
-                }, 1000);
-            }
-        })
-        .catch(error => {
-            console.error('Error checking classification status:', error);
-            if (attempt < maxAttempts) {
-                setTimeout(() => {
-                    pollClassificationStatus(ticketId, attempt + 1, maxAttempts);
-                }, 1000);
-            }
-        });
-}
-
-// Notification system
-function showNotification(message, type = 'info') {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <span>${message}</span>
-        <button onclick="this.parentElement.remove()">×</button>
-    `;
-    
-    // Add styles if not already present
-    if (!document.querySelector('#notification-styles')) {
-        const styles = document.createElement('style');
-        styles.id = 'notification-styles';
-        styles.textContent = `
-            .notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                padding: 12px 16px;
-                border-radius: 4px;
-                color: white;
-                z-index: 1000;
-                max-width: 300px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                animation: slideIn 0.3s ease;
-            }
-            .notification-success { background-color: #27ae60; }
-            .notification-error { background-color: #e74c3c; }
-            .notification-warning { background-color: #f39c12; }
-            .notification-info { background-color: #3498db; }
-            .notification button {
-                background: none;
-                border: none;
-                color: white;
-                font-size: 18px;
-                cursor: pointer;
-                margin-left: 10px;
-            }
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-        `;
-        document.head.appendChild(styles);
-    }
-    
-    document.body.appendChild(notification);
-    
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        if (notification.parentElement) {
-            notification.remove();
-        }
-    }, 5000);
-}
 
 function searchTickets() {
-    getTickets(1); // ✅ reset to page 1
+    // Reset to first page when searching
+    currentPage.value = 1;
+}
+
+function clearFilters() {
+    filters.value = {
+        subject: "",
+        status: "",
+        category: "",
+    };
+    currentPage.value = 1;
 }
 
 const showModal = ref(false);
@@ -210,11 +164,9 @@ const newTicket = ref({
 
 const DetailsModal = ref(false);
 const selectedTicket = ref({});
-const classifyButton = ref(null);
 
 function openDetailsModal(ticket) {
     selectedTicket.value = { ...ticket };
-    console.log(selectedTicket.value);
     DetailsModal.value = true;
 }
 
@@ -235,12 +187,13 @@ onMounted(() => {
                 <input
                     v-model="filters.subject"
                     type="text"
-                    placeholder="🔍 tickets subject..."
+                    placeholder="🔍 Filter by subject..."
                     class="filter-input"
+                    @input="searchTickets"
                 />
 
                 <!-- Status filter -->
-                <select v-model="filters.status" class="filter-select">
+                <select v-model="filters.status" class="filter-select" @change="searchTickets">
                     <option value="">All Status</option>
                     <option value="open">Open</option>
                     <option value="in_progress">In Progress</option>
@@ -248,7 +201,7 @@ onMounted(() => {
                 </select>
 
                 <!-- Category filter -->
-                <select v-model="filters.category" class="filter-select">
+                <select v-model="filters.category" class="filter-select" @change="searchTickets">
                     <option value="">All Categories</option>
                     <option value="account">Account</option>
                     <option value="bug">Bug</option>
@@ -257,8 +210,8 @@ onMounted(() => {
                     <option value="other">Others</option>
                 </select>
 
-                <button class="btn btn--primary" @click="searchTickets">
-                    Search
+                <button class="btn btn--secondary" @click="clearFilters">
+                    Clear Filters
                 </button>
             </div>
 
@@ -267,8 +220,23 @@ onMounted(() => {
             </button>
         </div>
 
+        <!-- Loading state -->
+        <div v-if="loading" class="loading-state">
+            <div class="spinner"></div>
+            <span>Loading tickets...</span>
+        </div>
+
+        <!-- Results info -->
+        <div v-else class="results-info">
+            Showing {{ paginatedTickets.length }} of {{ filteredTickets.length }} tickets
+            ({{ allTickets.length }} total)
+            <span v-if="filters.subject || filters.status || filters.category" class="filter-indicator">
+                • Filters active
+            </span>
+        </div>
+
         <!-- Table -->
-        <table class="ticket-list">
+        <table class="ticket-list" v-if="!loading">
             <thead class="ticket-list__head">
                 <tr>
                     <th class="ticket-list__th">Subject</th>
@@ -281,7 +249,7 @@ onMounted(() => {
             </thead>
             <tbody class="ticket-list__body">
                 <tr
-                    v-for="(ticket, index) in tickets"
+                    v-for="(ticket, index) in paginatedTickets"
                     :key="index"
                     class="ticket-list__row"
                 >
@@ -300,9 +268,22 @@ onMounted(() => {
                             {{ ticket.status }}
                         </span>
                     </td>
-                    <td class="ticket-list__cell">{{ ticket.category }}</td>
-                    <td class="ticket-list__cell">{{ ticket.confidence }}</td>
-                    <td class="ticket-list__cell">{{ ticket.note }}</td>
+                    <td class="ticket-list__cell">
+                        <span v-if="ticket.category" :class="['badge--category']">
+                            {{ ticket.category }}
+                        </span>
+                        <span v-else>-</span>
+                    </td>
+                    <td class="ticket-list__cell">
+                        <span v-if="ticket.confidence">
+                            {{ (ticket.confidence * 100).toFixed(1) }}%
+                        </span>
+                        <span v-else>-</span>
+                    </td>
+                    <td class="ticket-list__cell">
+                        <span v-if="ticket.note" title="Has note">📝</span>
+                        <span v-else>-</span>
+                    </td>
                     <td class="ticket-list__cell">
                         <button
                             class="btn btn--small"
@@ -315,25 +296,42 @@ onMounted(() => {
             </tbody>
         </table>
 
+        <!-- Empty state -->
+        <div v-if="!loading && filteredTickets.length === 0" class="empty-state">
+            <p>No tickets found matching your filters.</p>
+            <button class="btn btn--primary" @click="clearFilters">
+                Clear Filters
+            </button>
+        </div>
+
         <!-- Pagination -->
-        <div class="pagination">
+        <div v-if="!loading && filteredTickets.length > 0" class="pagination">
             <button
-                :disabled="pagination.current_page === 1"
-                @click="changePage(pagination.current_page - 1)"
+                :disabled="currentPage === 1"
+                @click="changePage(currentPage - 1)"
+                class="btn btn--outline"
             >
                 Prev
             </button>
 
-            <span>
-                Page {{ pagination.current_page }} of {{ pagination.last_page }}
+            <span class="pagination-info">
+                Page {{ currentPage }} of {{ totalPages }}
             </span>
 
             <button
-                :disabled="pagination.current_page === pagination.last_page"
-                @click="changePage(pagination.current_page + 1)"
+                :disabled="currentPage === totalPages"
+                @click="changePage(currentPage + 1)"
+                class="btn btn--outline"
             >
                 Next
             </button>
+
+            <select v-model="itemsPerPage" class="page-size-select">
+                <option value="5">5 per page</option>
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+            </select>
         </div>
 
         <!-- New Ticket Modal -->
@@ -378,7 +376,6 @@ onMounted(() => {
                         step="0.01"
                         placeholder="Confidence"
                         class="modal-input"
-                        required
                     />
                     <textarea
                         v-model="newTicket.note"
@@ -450,7 +447,6 @@ onMounted(() => {
                         step="0.01"
                         placeholder="Confidence"
                         class="modal-input"
-                        required
                     />
 
                     <textarea
@@ -468,7 +464,6 @@ onMounted(() => {
                             Cancel
                         </button>
 
-                        <!-- ✅ FIX: Correct update button -->
                         <button type="submit" class="btn btn--primary">
                             Update
                         </button>

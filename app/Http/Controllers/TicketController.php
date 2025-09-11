@@ -12,32 +12,32 @@ class TicketController extends Controller
     public function index(Request $request)
     {
 
-        // sever side filtering
-        $tickets = Ticket::when(
-            $request->filled('subject') || $request->filled('status') || $request->filled('category'),
-            function ($query) use ($request) {
-                $query->where(function ($query) use ($request) {
+        // // sever side filtering
+        // $tickets = Ticket::when(
+        //     $request->filled('subject') || $request->filled('status') || $request->filled('category'),
+        //     function ($query) use ($request) {
+        //         $query->where(function ($query) use ($request) {
 
-                    if ($request->filled('subject')) {
-                        $query->where('subject', 'like', '%' . $request->input('subject') . '%');
-                    }
+        //             if ($request->filled('subject')) {
+        //                 $query->where('subject', 'like', '%' . $request->input('subject') . '%');
+        //             }
 
-                    if ($request->filled('status')) {
-                        $query->where('status', $request->input('status'));
-                    }
+        //             if ($request->filled('status')) {
+        //                 $query->where('status', $request->input('status'));
+        //             }
 
-                    if ($request->filled('category')) {
-                        $query->where('category', $request->input('category'));
-                    }
-                });
-            }
-        )
-            ->paginate(10); // ✅ use pagination if you want
-        // ->get(); // if you don't need pagination
+        //             if ($request->filled('category')) {
+        //                 $query->where('category', $request->input('category'));
+        //             }
+        //         });
+        //     }
+        // )
+        //     ->paginate(10); 
+       
 
 
         //will be filtered on client side
-        //$tickets = Ticket::all();
+        $tickets = Ticket::all();
 
 
         return response()->json($tickets, 200);
